@@ -1,9 +1,9 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import Image from 'next/image';
 import { useUser } from '@clerk/nextjs';
 import MoviesList from '@/components/MoviesList';
+import GenreForm from '@/components/GenreForm';
 
 interface SearchParams {
   country: string;
@@ -19,8 +19,22 @@ export default function Home() {
     country: 'us',
     services: 'netflix',
     showType: 'all',
-    genre: '18',
+    genre: '18', // Default genre ID
   });
+  const [genres, setGenres] = useState<Record<string, string>>({}); // Updated to object with genre IDs and names
+
+  useEffect(() => {
+    const fetchGenres = async () => {
+      try {
+        const response = await axios.get('http://localhost:3001/api/genres');
+        setGenres(response.data.result);
+      } catch (error) {
+        console.error('Error fetching genres:', error);
+      }
+    };
+
+    fetchGenres();
+  }, []);
 
   useEffect(() => {
     const searchMovies = async () => {
@@ -31,24 +45,27 @@ export default function Home() {
             params: searchParams,
           }
         );
-        setMovies(response.data.result);
+        setMovies(response.data.result); // Update movies state with new data
       } catch (error) {
         console.error('Error searching movies:', error);
       }
     };
 
-    // Call the function to initiate the API request
     searchMovies();
+  }, [searchParams]); // Add searchParams as a dependency
 
-    // Cleanup function can be added if needed
-    return () => {
-      // Cleanup code here
-    };
-  }, []); // Empty dependency array ensures this effect runs only once on component mount
+  const handleGenreSubmit = (formData: { genre: string }) => {
+    const genreId = Object.keys(genres).find(
+      (key) => genres[key] === formData.genre
+    );
+    setSearchParams({ ...searchParams, genre: genreId || '' });
+  };
 
   if (!isLoaded || !isSignedIn) {
     return null;
   }
+  console.log(searchParams);
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-between p-12 md:px-24">
       <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
@@ -58,8 +75,10 @@ export default function Home() {
           Hello, {user.firstName}
         </p>
       </div>
-
-      <MoviesList data={movies} title="Movie List" />
+      <GenreForm genres={Object.values(genres)} onSubmit={handleGenreSubmit} />{' '}
+      {/* Pass genres as an array of genre names */}
+      <MoviesList data={movies} title="Movie List" />{' '}
+      {/* Ensure that MoviesList component re-renders with updated movies data */}
     </main>
   );
 }
